@@ -73,16 +73,27 @@
   when: tlog_use_sssd
   notify: Handler tlog_handler restart sssd
 
-- name: Check with-files-domain feature exists
+- name: Check appropriate authselect features exists
   command: authselect list-features sssd
   register: __tlog_authselect_features
   changed_when: false
 
-- name: Check if files domain is currently enabled
+- name: Check which authselect features are currently enabled
   command: authselect current
   register: __tlog_authselect_current
   changed_when: false
   failed_when: __tlog_authselect_current.rc not in [0, 2]
+
+- name: Update nsswitch
+  command: authselect select sssd with-tlog --force
+  when:
+    - not ansible_check_mode
+    - tlog_use_sssd
+    - '"with-tlog" in __tlog_authselect_features.stdout'
+    - not "with-tlog" in __tlog_authselect_current.stdout
+
+  notify: Handler tlog_handler restart sssd
+  changed_when: true
 
 - name: Update nsswitch
   command: authselect select sssd with-files-domain --force
